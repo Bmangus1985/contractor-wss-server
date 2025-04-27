@@ -1,4 +1,4 @@
-// Contractor WSS Server Final Version
+// Contractor AI WSS Server - Final Fixed Version
 
 const WebSocket = require('ws');
 const http = require('http');
@@ -9,27 +9,28 @@ const bodyParser = require('body-parser');
 
 // Create Express app
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
-app.use(bodyParser.json());
-
-// Your Deepgram and OpenAI Keys
-const deepgram = createClient('964565b31584572965195fca41a9d08d2e1ae170'); // Deepgram key
-const openaiApiKey = `sk-proj-1fAVSCPk27GgzfaK0ukfqYvKfhjQr0DEU-t0D9hRPz0CkM7tF8v1HRz26IsCaPcxL90Em7bhIK3pFLJp_1-ttdhnyt7oUxhTbKo44810szPcMBFg0uvSe2b01mDJAQ1Inn6bKP_FH2SlOUFuygA`; // OpenAI key
-
-// Setup HTTP server
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-// Test route
-app.get('/', (req, res) => {
-  res.send('Contractor AI Server is running.');
+// Create WebSocket server
+const wss = new WebSocket.Server({
+  server,
+  perMessageDeflate: false // IMPORTANT: Turn off compression for Telnyx
 });
 
-// Webhook for Telnyx
+// Your Deepgram and OpenAI Keys
+const deepgram = createClient('964565b31584572965195fca41a9d08d2e1ae170');
+const openaiApiKey = `sk-proj-1fAVSCPk27GgzfaK0ukfqYvKfhjQr0DEU-t0D9hRPz0CkM7tF8v1HRz26IsCaPcxL90Em7bhIK3pFLJp_1-ttdhnyt7oUxhTbKo44810szPcMBFg0uvSe2b01mDJAQ1Inn6bKP_FH2SlOUFuygA`;
+
+// Simple HTTP route
+app.get('/', (req, res) => {
+  res.send('Contractor WSS Server is running.');
+});
+
+// Webhook XML for Telnyx
 app.all('/webhook', (req, res) => {
   console.log('📞 Incoming call webhook from Telnyx');
 
-  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/'; // ✅ Updated correct WSS
+  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/';
 
   const response = `
     <?xml version="1.0" encoding="UTF-8"?>
@@ -42,15 +43,9 @@ app.all('/webhook', (req, res) => {
   res.status(200).send(response.trim());
 });
 
-// WebSocket logic for incoming audio
+// Handle incoming WebSocket connection
 wss.on('connection', (ws) => {
-  console.log('🚀 New Telnyx call stream connected!');
-
-  // 🔥 Send "connected" event immediately to Telnyx
-  ws.send(JSON.stringify({
-    event: "connected",
-    message: "WSS server ready"
-  }));
+  console.log('🚀 New Telnyx WebSocket connection established');
 
   let deepgramConnection;
 
@@ -58,7 +53,13 @@ wss.on('connection', (ws) => {
     const parsed = JSON.parse(message);
 
     if (parsed.event === 'start') {
-      console.log('🔔 Stream started:', parsed.start);
+      console.log('🔔 Telnyx sent START event');
+
+      // 🔥 Send acknowledgment to Telnyx
+      ws.send(JSON.stringify({
+        event: "connected",
+        message: "Ready to receive media"
+      }));
 
       deepgramConnection = deepgram.listen.live({
         model: 'general',
@@ -90,7 +91,7 @@ wss.on('connection', (ws) => {
     }
 
     if (parsed.event === 'stop') {
-      console.log('🛑 Stream stopped.');
+      console.log('🛑 Telnyx stream stopped');
       if (deepgramConnection) {
         deepgramConnection.finish();
       }
@@ -98,14 +99,14 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
-    console.log('❌ Connection closed');
+    console.log('❌ Telnyx WebSocket closed');
   });
 });
 
-// Start server
+// Start HTTP server
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
-  console.log(`🛡️ WSS Server running on port ${PORT}`);
+  console.log(`🛡️ Contractor WSS Server running on port ${PORT}`);
 });
 
 // GPT-4 Assistant Function

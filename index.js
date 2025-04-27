@@ -2,20 +2,22 @@ const WebSocket = require('ws');
 const express = require('express');
 const http = require('http');
 
-// Create Express app
 const app = express();
 const server = http.createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocket.Server({ server });
+// Create WebSocket server — 🔥 IMPORTANT: No strict protocol negotiation
+const wss = new WebSocket.Server({
+  server,
+  perMessageDeflate: false, // 🔥 Turn off compression (Telnyx doesn't like it)
+});
 
 // Handle WebSocket connections
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
   console.log('🎧 Telnyx connected to WSS');
 
   ws.on('message', (message) => {
     console.log('🔊 Received audio stream data');
-    // In production, you'd forward this audio to Deepgram here if needed
+    // In production, you would stream this to Deepgram or another processor
   });
 
   ws.on('close', () => {
@@ -23,9 +25,9 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Simple GET route to keep server alive
+// Basic GET endpoint to confirm server is alive
 app.get('/', (req, res) => {
-  res.send('WSS server is running.');
+  res.send('WSS server is running and ready for Telnyx!');
 });
 
 // Start server

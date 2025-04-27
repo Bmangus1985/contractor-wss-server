@@ -32,13 +32,29 @@ app.all('/webhook', (req, res) => {
   res.status(200).send(telnyxResponse);
 });
 
-// Handle incoming WebSocket connections (audio)
+// Handle incoming WebSocket connections
 wss.on('connection', (ws) => {
   console.log('🔗 New WebSocket connection established.');
 
   ws.on('message', (message) => {
-    console.log('🎧 Received WebSocket message:', message.length, 'bytes');
-    // Right now just logging audio size — you can add Deepgram/GPT later
+    try {
+      const parsed = JSON.parse(message);
+
+      if (parsed.event === 'start') {
+        console.log('🟢 Stream start event received:', parsed.start);
+      }
+
+      if (parsed.event === 'media') {
+        console.log('🎧 Receiving media payload...');
+        // Pretend to process audio to keep the stream alive
+      }
+
+      if (parsed.event === 'stop') {
+        console.log('🔴 Stream stop event received.');
+      }
+    } catch (error) {
+      console.error('Error parsing WebSocket message:', error.message);
+    }
   });
 
   ws.on('close', () => {

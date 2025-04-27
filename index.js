@@ -1,79 +1,47 @@
-// Contractor Hybrid Server (HTTP + WebSocket)
-
-const http = require('http');
 const WebSocket = require('ws');
+const http = require('http');
 const express = require('express');
 
 // Create Express app
 const app = express();
+const server = http.createServer(app);
+const wss = new WebSocket.Server({ server });
 
-// Handle webhook (XML response for Telnyx)
-app.use(express.urlencoded({ extended: false }));
-app.use(express.json());
+// Log that HTTP is running
+server.listen(8080, () => {
+  console.log('🛡️ Contractor hybrid server (HTTP + WSS) running on port 8080');
+});
 
-// Main webhook for call events
-app.post('/webhook', (req, res) => {
+// Handle Telnyx Webhook for call control
+app.all('/webhook', (req, res) => {
   console.log('📞 Incoming Telnyx webhook hit.');
 
-  const response = `
+  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/';
+
+  const telnyxResponse = `
     <?xml version="1.0" encoding="UTF-8"?>
     <Response>
-      <StartStream url="wss://contractor-wss-server-production.up.railway.app/media" />
-      <SpeakSentence voice="female/en_us/callie" language="en-US">Hello! Please tell us what service you are needing today.</SpeakSentence>
+      <StartStream url="${websocketUrl}" />
+      <SpeakSentence voice="female/en_us/callie" language="en-US">
+        Hello! Please tell us what service you are needing today.
+      </SpeakSentence>
     </Response>
-  `;
+  `.trim();
 
-  res.set('Content-Type', 'text/xml');
-  res.send(response.trim());
+  res.set('Content-Type', 'application/xml');
+  res.status(200).send(telnyxResponse);
 });
 
-// Create HTTP server
-const server = http.createServer(app);
-
-// Create WebSocket server (ONLY for /media)
-const wss = new WebSocket.Server({ noServer: true });
-
-// Handle WebSocket upgrades
-server.on('upgrade', (request, socket, head) => {
-  if (request.url === '/media') {
-    console.log('🔗 Telnyx is attempting to open a WebSocket connection...');
-    wss.handleUpgrade(request, socket, head, (ws) => {
-      wss.emit('connection', ws, request);
-    });
-  } else {
-    console.log('❌ WebSocket upgrade attempted on unknown path:', request.url);
-    socket.destroy();
-  }
-});
-
-// Handle actual WebSocket connection
+// Handle incoming WebSocket connections (audio)
 wss.on('connection', (ws) => {
-  console.log('✅ WebSocket connected!');
+  console.log('🔗 New WebSocket connection established.');
 
   ws.on('message', (message) => {
-    try {
-      const parsed = JSON.parse(message);
-      if (parsed.event === 'start') {
-        console.log('🎯 Call media streaming started.');
-      } else if (parsed.event === 'media') {
-        // Handle media streaming audio here if needed
-      } else if (parsed.event === 'stop') {
-        console.log('🛑 Call media streaming stopped.');
-      } else {
-        console.log('📩 Other event:', parsed.event);
-      }
-    } catch (error) {
-      console.error('❌ Error parsing WebSocket message:', error);
-    }
+    console.log('🎧 Received WebSocket message:', message.length, 'bytes');
+    // Right now just logging audio size — you can add Deepgram/GPT later
   });
 
   ws.on('close', () => {
-    console.log('❌ WebSocket closed.');
+    console.log('❌ WebSocket connection closed.');
   });
-});
-
-// Start server
-const PORT = process.env.PORT || 8080;
-server.listen(PORT, () => {
-  console.log(`🛡️ Contractor Hybrid Server (HTTP + WSS) running on port ${PORT}`);
 });

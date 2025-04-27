@@ -1,3 +1,5 @@
+// Updated for live WSS connection (forced commit)
+
 const WebSocket = require('ws');
 const http = require('http');
 const { createClient } = require('@deepgram/sdk');
@@ -22,11 +24,11 @@ app.get('/', (req, res) => {
   res.send('Contractor AI Server is running.');
 });
 
-// 🔥 Updated: Handle ALL methods (GET, POST) at /webhook
+// 🔥 Handle ALL methods (GET, POST) at /webhook
 app.all('/webhook', (req, res) => {
   console.log('📞 Incoming call webhook from Telnyx');
 
-  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/'; // ✅ YOUR new WSS URL
+  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/'; // ✅ Updated WSS URL
 
   const response = `
     <?xml version="1.0" encoding="UTF-8"?>

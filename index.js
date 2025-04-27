@@ -1,51 +1,46 @@
-// Contractor AI WSS Server - FINAL with Heartbeat
+// Contractor AI WSS Server - Ultimate Handshake Fixed Version
 
 const WebSocket = require('ws');
+const express = require('express');
 const http = require('http');
 const { createClient } = require('@deepgram/sdk');
 const axios = require('axios');
-const express = require('express');
 const bodyParser = require('body-parser');
 
-// Create Express app
+// Express App + Server Setup
 const app = express();
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+
 const server = http.createServer(app);
 
-// Create WebSocket server
-const wss = new WebSocket.Server({
-  server,
-  perMessageDeflate: false // IMPORTANT: Turn off compression for Telnyx
-});
-
-// Your Deepgram and OpenAI Keys
+// Deepgram + OpenAI Setup
 const deepgram = createClient('964565b31584572965195fca41a9d08d2e1ae170');
 const openaiApiKey = `sk-proj-1fAVSCPk27GgzfaK0ukfqYvKfhjQr0DEU-t0D9hRPz0CkM7tF8v1HRz26IsCaPcxL90Em7bhIK3pFLJp_1-ttdhnyt7oUxhTbKo44810szPcMBFg0uvSe2b01mDJAQ1Inn6bKP_FH2SlOUFuygA`;
 
-// Simple HTTP route
-app.get('/', (req, res) => {
-  res.send('Contractor WSS Server is running.');
+// Manual WebSocket Upgrade Route
+app.get('/media', (req, res) => {
+  res.status(426).send('Upgrade Required'); // Force upgrade to WS
 });
 
-// Webhook XML for Telnyx
-app.all('/webhook', (req, res) => {
-  console.log('📞 Incoming call webhook from Telnyx');
+const wss = new WebSocket.Server({ noServer: true }); // Manual handshake handling
 
-  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/';
+// WebSocket Upgrade Listener
+server.on('upgrade', (request, socket, head) => {
+  const pathname = request.url;
 
-  const response = `
-    <?xml version="1.0" encoding="UTF-8"?>
-    <Response>
-      <StartStream url="${websocketUrl}" />
-      <SpeakSentence voice="female/en_us/callie" language="en-US">Hello! Please tell us what service you are needing today.</SpeakSentence>
-    </Response>
-  `;
-  res.set('Content-Type', 'text/xml');
-  res.status(200).send(response.trim());
+  if (pathname === '/media') {
+    wss.handleUpgrade(request, socket, head, (ws) => {
+      wss.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
 });
 
-// Handle incoming WebSocket connections
+// Handle WebSocket Connections
 wss.on('connection', (ws) => {
-  console.log('🚀 New Telnyx WebSocket connection established');
+  console.log('🚀 Telnyx WebSocket connection established at /media');
 
   let deepgramConnection;
   let heartbeatInterval;
@@ -56,12 +51,12 @@ wss.on('connection', (ws) => {
     if (parsed.event === 'start') {
       console.log('🔔 Telnyx sent START event');
 
-      // 🔥 Send heartbeat (fake audio) every 2 seconds
+      // Start heartbeat to keep Telnyx happy
       heartbeatInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send(Buffer.from([0x00, 0x00, 0x00, 0x00])); // Dummy silent frame
+          ws.send(Buffer.from([0x00, 0x00, 0x00, 0x00]));
         }
-      }, 2000); // every 2 seconds
+      }, 2000);
 
       deepgramConnection = deepgram.listen.live({
         model: 'general',
@@ -97,17 +92,39 @@ wss.on('connection', (ws) => {
       if (deepgramConnection) {
         deepgramConnection.finish();
       }
-      clearInterval(heartbeatInterval); // 🛡 Stop heartbeat on stop
+      clearInterval(heartbeatInterval);
     }
   });
 
   ws.on('close', () => {
     console.log('❌ Telnyx WebSocket closed');
-    clearInterval(heartbeatInterval); // 🛡 Stop heartbeat on close
+    clearInterval(heartbeatInterval);
   });
 });
 
-// Start HTTP server
+// Test Route
+app.get('/', (req, res) => {
+  res.send('Contractor WSS Server is running.');
+});
+
+// Telnyx Webhook Route
+app.all('/webhook', (req, res) => {
+  console.log('📞 Incoming call webhook from Telnyx');
+
+  const websocketUrl = 'wss://contractor-wss-server-production.up.railway.app/media';
+
+  const response = `
+    <?xml version="1.0" encoding="UTF-8"?>
+    <Response>
+      <StartStream url="${websocketUrl}" />
+      <SpeakSentence voice="female/en_us/callie" language="en-US">Hello! Please tell us what service you are needing today.</SpeakSentence>
+    </Response>
+  `;
+  res.set('Content-Type', 'text/xml');
+  res.status(200).send(response.trim());
+});
+
+// Start Server
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
   console.log(`🛡️ Contractor WSS Server running on port ${PORT}`);

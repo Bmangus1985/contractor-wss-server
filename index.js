@@ -1,4 +1,4 @@
-// Contractor AI WSS Server - Final Fixed Version
+// Contractor AI WSS Server - FINAL with Heartbeat
 
 const WebSocket = require('ws');
 const http = require('http');
@@ -43,11 +43,12 @@ app.all('/webhook', (req, res) => {
   res.status(200).send(response.trim());
 });
 
-// Handle incoming WebSocket connection
+// Handle incoming WebSocket connections
 wss.on('connection', (ws) => {
   console.log('🚀 New Telnyx WebSocket connection established');
 
   let deepgramConnection;
+  let heartbeatInterval;
 
   ws.on('message', (message) => {
     const parsed = JSON.parse(message);
@@ -55,11 +56,12 @@ wss.on('connection', (ws) => {
     if (parsed.event === 'start') {
       console.log('🔔 Telnyx sent START event');
 
-      // 🔥 Send acknowledgment to Telnyx
-      ws.send(JSON.stringify({
-        event: "connected",
-        message: "Ready to receive media"
-      }));
+      // 🔥 Send heartbeat (fake audio) every 2 seconds
+      heartbeatInterval = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(Buffer.from([0x00, 0x00, 0x00, 0x00])); // Dummy silent frame
+        }
+      }, 2000); // every 2 seconds
 
       deepgramConnection = deepgram.listen.live({
         model: 'general',
@@ -95,11 +97,13 @@ wss.on('connection', (ws) => {
       if (deepgramConnection) {
         deepgramConnection.finish();
       }
+      clearInterval(heartbeatInterval); // 🛡 Stop heartbeat on stop
     }
   });
 
   ws.on('close', () => {
     console.log('❌ Telnyx WebSocket closed');
+    clearInterval(heartbeatInterval); // 🛡 Stop heartbeat on close
   });
 });
 

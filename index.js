@@ -25,15 +25,17 @@ app.all('/webhook', (req, res) => {
 
   const response = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <StartStream url="wss://contractor-wss-server-production.up.railway.app/media"/>
-  <SpeakSentence voice="female/en_us/callie" language="en-US">Hello! Please tell us what service you are needing today.</SpeakSentence>
+  <StartStream url="wss://contractor-wss-server.onrender.com/media"/>
+  <SpeakSentence voice="female/en_us/callie" language="en-US">
+    Hello! Please tell us what service you are needing today.
+  </SpeakSentence>
 </Response>`;
 
   res.set('Content-Type', 'application/xml');
   res.status(200).send(response.trim());
 });
 
-// WebSocket Upgrade Handling
+// Handle WebSocket upgrade for /media
 server.on('upgrade', (request, socket, head) => {
   if (request.url === '/media') {
     console.log('🔗 Telnyx attempting WebSocket upgrade...');
@@ -46,7 +48,7 @@ server.on('upgrade', (request, socket, head) => {
   }
 });
 
-// WebSocket Connection Handling
+// WebSocket connection
 wss.on('connection', (ws) => {
   console.log('✅ WebSocket connection accepted.');
 
@@ -60,7 +62,7 @@ wss.on('connection', (ws) => {
 
       if (parsed.event === 'media') {
         console.log('🎧 Receiving audio packets...');
-        // This is where you'd normally send to Deepgram for transcription
+        // You can add Deepgram/GPT processing here later
       }
 
       if (parsed.event === 'stop') {
@@ -81,7 +83,7 @@ wss.on('connection', (ws) => {
   });
 });
 
-// Start the HTTP + WSS server
+// Start HTTP + WebSocket server
 const PORT = process.env.PORT || 8080;
 server.listen(PORT, () => {
   console.log(`🛡️ Contractor Hybrid Server (HTTP + WSS) running on port ${PORT}`);

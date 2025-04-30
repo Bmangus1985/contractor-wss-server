@@ -1,4 +1,4 @@
-// index.js
+// index.js (Render-Compatible, Corrected Version)
 
 const express = require('express');
 const http = require('http');
@@ -17,12 +17,14 @@ const openaiApiKey = 'YOUR_OPENAI_API_KEY';
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// Root route for manual check
 app.get('/', (req, res) => {
   res.send('Contractor WSS Server is up.');
 });
 
-// 🚫 Disable all caching on the webhook response
+// Webhook endpoint for Telnyx
 app.get('/webhook', (req, res) => {
+  console.log('📞 Webhook hit!');
   res.set({
     'Content-Type': 'application/xml',
     'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -44,9 +46,9 @@ app.get('/webhook', (req, res) => {
   res.status(200).send(response.trim());
 });
 
+// WebSocket server handler
 wss.on('connection', (ws) => {
   console.log('🔌 WebSocket connection established');
-
   let dgSocket;
 
   ws.on('message', async (msg) => {
@@ -55,7 +57,6 @@ wss.on('connection', (ws) => {
 
       if (data.event === 'start') {
         console.log('🚀 Start event received');
-
         dgSocket = deepgram.listen.live({
           model: 'general',
           language: 'en-US',
@@ -93,10 +94,13 @@ wss.on('connection', (ws) => {
   });
 });
 
-server.listen(10000, () => {
-  console.log('🛡️ Contractor Hybrid Server (HTTP + WSS) running on port 10000');
+// 🚨 IMPORTANT: Use Render's assigned port ONLY
+const PORT = process.env.PORT;
+server.listen(PORT, () => {
+  console.log(`🛡️ Contractor Hybrid Server running on port ${PORT}`);
 });
 
+// GPT-4 integration
 async function getReply(input) {
   try {
     const res = await axios.post(
@@ -129,4 +133,4 @@ async function getReply(input) {
     console.error('🧠 GPT-4 Error:', error.message);
     return "I'm having trouble answering that. Please try again later.";
   }
-}
+} 
